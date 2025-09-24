@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "./MulDivLib.sol";
-import "lib/v3-core/contracts/libraries/FixedPoint128.sol";
-import "lib/v3-core/contracts/libraries/LiquidityMath.sol";
+import "./FixedPoint128.sol";
+import "./LiquidityMath.sol";
 
 library Position {
     struct Info {

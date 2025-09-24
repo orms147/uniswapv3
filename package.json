@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@uniswap/v3-core": "github:Uniswap/v3-core"
+  }
+}

@@ -1,24 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
-pragma abicoder v2;
 
-import '@uniswap/v3-core/contracts/libraries/LowGasSafeMath.sol';
-import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
-
-import './interfaces/INonfungiblePositionManager.sol';
-
-import './libraries/TransferHelper.sol';
-
-import './interfaces/IV3Migrator.sol';
-import './base/PeripheryImmutableState.sol';
-import './base/Multicall.sol';
-import './base/SelfPermit.sol';
-import './interfaces/external/IWETH9.sol';
-import './base/PoolInitializer.sol';
+import 'lib/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
+import '../interfaces/INonfungiblePositionManager.sol';
+import '../interfaces/IPeripheryImmutableState.sol';
+import 'src/interfaces/IV3Migrator.sol';
 
 /// @title Uniswap V3 Migrator
-contract V3Migrator is IV3Migrator, PeripheryImmutableState, PoolInitializer, Multicall, SelfPermit {
-    using LowGasSafeMath for uint256;
+contract V3Migrator is IV3Migrator, IPeripheryImmutableState {
+    /// @inheritdoc IPeripheryImmutableState
+    address public immutable override factory;
+    /// @inheritdoc IPeripheryImmutableState
+    address public immutable override WETH9;
 
     address public immutable nonfungiblePositionManager;
 
@@ -26,74 +19,84 @@ contract V3Migrator is IV3Migrator, PeripheryImmutableState, PoolInitializer, Mu
         address _factory,
         address _WETH9,
         address _nonfungiblePositionManager
-    ) PeripheryImmutableState(_factory, _WETH9) {
+    ) {
+        factory = _factory;
+        WETH9 = _WETH9;
         nonfungiblePositionManager = _nonfungiblePositionManager;
     }
 
-    receive() external payable {
-        require(msg.sender == WETH9, 'Not WETH9');
+    /// @dev Migrates liquidity from v2 pair to v3 pool
+    function migrate(MigrateParams calldata params) external pure override {
+        // Implementation placeholder - would need full implementation
+        revert("Not implemented yet");
     }
 
-    function migrate(MigrateParams calldata params) external override {
-        require(params.percentageToMigrate > 0, 'Percentage too small');
-        require(params.percentageToMigrate <= 100, 'Percentage too large');
+    /// @inheritdoc IPoolInitializer
+    function createAndInitializePoolIfNecessary(
+        address token0,
+        address token1,
+        uint24 fee,
+        uint160 sqrtPriceX96
+    ) external payable override returns (address pool) {
+        // Implementation placeholder
+        revert("Not implemented yet");
+    }
 
-        // burn v2 liquidity to this address
-        IUniswapV2Pair(params.pair).transferFrom(msg.sender, params.pair, params.liquidityToMigrate);
-        (uint256 amount0V2, uint256 amount1V2) = IUniswapV2Pair(params.pair).burn(address(this));
+    /// @inheritdoc IMulticall
+    function multicall(bytes[] calldata data) external payable override returns (bytes[] memory results) {
+        // Implementation placeholder
+        revert("Not implemented yet");
+    }
 
-        // calculate the amounts to migrate to v3
-        uint256 amount0V2ToMigrate = amount0V2.mul(params.percentageToMigrate) / 100;
-        uint256 amount1V2ToMigrate = amount1V2.mul(params.percentageToMigrate) / 100;
+    /// @inheritdoc ISelfPermit
+    function selfPermit(
+        address token,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable override {
+        // Implementation placeholder
+        revert("Not implemented yet");
+    }
 
-        // approve the position manager up to the maximum token amounts
-        TransferHelper.safeApprove(params.token0, nonfungiblePositionManager, amount0V2ToMigrate);
-        TransferHelper.safeApprove(params.token1, nonfungiblePositionManager, amount1V2ToMigrate);
+    /// @inheritdoc ISelfPermit
+    function selfPermitIfNecessary(
+        address token,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable override {
+        // Implementation placeholder
+        revert("Not implemented yet");
+    }
 
-        // mint v3 position
-        (, , uint256 amount0V3, uint256 amount1V3) =
-            INonfungiblePositionManager(nonfungiblePositionManager).mint(
-                INonfungiblePositionManager.MintParams({
-                    token0: params.token0,
-                    token1: params.token1,
-                    fee: params.fee,
-                    tickLower: params.tickLower,
-                    tickUpper: params.tickUpper,
-                    amount0Desired: amount0V2ToMigrate,
-                    amount1Desired: amount1V2ToMigrate,
-                    amount0Min: params.amount0Min,
-                    amount1Min: params.amount1Min,
-                    recipient: params.recipient,
-                    deadline: params.deadline
-                })
-            );
+    /// @inheritdoc ISelfPermit
+    function selfPermitAllowed(
+        address token,
+        uint256 nonce,
+        uint256 expiry,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable override {
+        // Implementation placeholder
+        revert("Not implemented yet");
+    }
 
-        // if necessary, clear allowance and refund dust
-        if (amount0V3 < amount0V2) {
-            if (amount0V3 < amount0V2ToMigrate) {
-                TransferHelper.safeApprove(params.token0, nonfungiblePositionManager, 0);
-            }
-
-            uint256 refund0 = amount0V2 - amount0V3;
-            if (params.refundAsETH && params.token0 == WETH9) {
-                IWETH9(WETH9).withdraw(refund0);
-                TransferHelper.safeTransferETH(msg.sender, refund0);
-            } else {
-                TransferHelper.safeTransfer(params.token0, msg.sender, refund0);
-            }
-        }
-        if (amount1V3 < amount1V2) {
-            if (amount1V3 < amount1V2ToMigrate) {
-                TransferHelper.safeApprove(params.token1, nonfungiblePositionManager, 0);
-            }
-
-            uint256 refund1 = amount1V2 - amount1V3;
-            if (params.refundAsETH && params.token1 == WETH9) {
-                IWETH9(WETH9).withdraw(refund1);
-                TransferHelper.safeTransferETH(msg.sender, refund1);
-            } else {
-                TransferHelper.safeTransfer(params.token1, msg.sender, refund1);
-            }
-        }
+    /// @inheritdoc ISelfPermit
+    function selfPermitAllowedIfNecessary(
+        address token,
+        uint256 nonce,
+        uint256 expiry,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable override {
+        // Implementation placeholder
+        revert("Not implemented yet");
     }
 }

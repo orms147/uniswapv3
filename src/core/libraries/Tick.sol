@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "lib/v3-core/contracts/libraries/TickMath.sol";
-import "lib/v3-core/contracts/libraries/LiquidityMath.sol";
+import "./TickMath.sol";
+import "./LiquidityMath.sol";
 
 /// @title Tick
 /// @notice Contains functions for managing tick processes and relevant calculations

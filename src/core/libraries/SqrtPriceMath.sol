@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "./MulDivLib.sol";
-import "lib/v3-core/contracts/libraries/FixedPoint96.sol";
+import "src/core/libraries/MulDivLib.sol";
+import "src/core/libraries/FixedPoint96.sol";
 
 /// @title Functions based on Q64.96 sqrt price and liquidity
 /// @notice Contains the math that uses square root of price as a Q64.96 and liquidity to compute deltas

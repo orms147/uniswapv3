@@ -16,7 +16,7 @@ library TickBitmap {
     ) internal {
         require(tick % tickSpacing == 0); 
         (int16 wordPos, uint8 bitPos) = position(tick / tickSpacing);
-        uint256 mask = 1 << bitPos;
+        uint256 mask = uint256(1) << bitPos;
         self[wordPos] ^= mask;
     }
 
@@ -32,7 +32,7 @@ library TickBitmap {
         if (lte) {
             (int16 wordPos, uint8 bitPos) = position(compressed);
 
-            uint256 mask = (1 << bitPos) - 1 + (1 << bitPos);
+            uint256 mask = (uint256(1) << bitPos) - 1 + (uint256(1) << bitPos);
             uint256 masked = self[wordPos] & mask;
 
             initialized = masked != 0;
@@ -41,7 +41,7 @@ library TickBitmap {
                 : (compressed - int24(uint24(bitPos))) * tickSpacing;
         } else {
             (int16 wordPos, uint8 bitPos) = position(compressed + 1);
-            uint256 mask = ~((1 << bitPos) - 1);
+            uint256 mask = ~((uint256(1) << bitPos) - 1);
             uint256 masked = self[wordPos] & mask;
             initialized = masked != 0;
             next = initialized

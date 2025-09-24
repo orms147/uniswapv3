@@ -3,16 +3,18 @@ pragma solidity ^0.8.0;
 
 import 'src/interfaces/IUniswapV3Pool.sol';
 
+import './NoDelegateCall.sol';
+
 import './libraries/Tick.sol';
 import './libraries/TickBitmap.sol';
 import './libraries/Position.sol';
-import 'lib/v3-core/contracts/libraries/Oracle.sol';    
+import './libraries/Oracle.sol';    
 
-import 'src/core/libraries/MulDivLib.sol';
-import 'lib/v3-core/contracts/libraries/FixedPoint128.sol';
-import 'lib/v3-core/contracts/libraries/TransferHelper.sol';    
-import 'lib/v3-core/contracts/libraries/TickMath.sol';      
-import 'lib/v3-core/contracts/libraries/LiquidityMath.sol'; 
+import './libraries/MulDivLib.sol';
+import './libraries/FixedPoint128.sol';
+import './libraries/TransferHelper.sol';    
+import './libraries/TickMath.sol';      
+import './libraries/LiquidityMath.sol'; 
 import './libraries/SqrtPriceMath.sol';
 import './libraries/SwapMath.sol';
 
@@ -22,12 +24,9 @@ import 'lib/v3-core/contracts/interfaces/IERC20Minimal.sol';
 import 'lib/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol';
 import 'lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
 import 'lib/v3-core/contracts/interfaces/callback/IUniswapV3FlashCallback.sol';
+import 'lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
-    using LowGasSafeMath for uint256;
-    using LowGasSafeMath for int256;
-    using SafeCast for uint256;
-    using SafeCast for int256;
     using Tick for mapping(int24 => Tick.Info);
     using TickBitmap for mapping(int16 => uint256);
     using Position for mapping(bytes32 => Position.Info);
@@ -464,7 +463,7 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
                     owner: recipient,
                     tickLower: tickLower,
                     tickUpper: tickUpper,
-                    liquidityDelta: int256(amount).toInt128()
+                    liquidityDelta: int128(int256(uint256(amount)))
                 })
             );
 
@@ -476,8 +475,8 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
         if (amount0 > 0) balance0Before = balance0();
         if (amount1 > 0) balance1Before = balance1();
         IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, data);
-        if (amount0 > 0) require(balance0Before.add(amount0) <= balance0(), 'M0');
-        if (amount1 > 0) require(balance1Before.add(amount1) <= balance1(), 'M1');
+        if (amount0 > 0) require(balance0Before + amount0 <= balance0(), 'M0');
+        if (amount1 > 0) require(balance1Before + amount1 <= balance1(), 'M1');
 
         emit Mint(msg.sender, recipient, tickLower, tickUpper, amount, amount0, amount1);
     }
@@ -521,7 +520,7 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
                     owner: msg.sender,
                     tickLower: tickLower,
                     tickUpper: tickUpper,
-                    liquidityDelta: -int256(amount).toInt128()
+                    liquidityDelta: -int128(int256(uint256(amount)))
                 })
             );
 
@@ -667,11 +666,11 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
             );
 
             if (exactInput) {
-                state.amountSpecifiedRemaining -= (step.amountIn + step.feeAmount).toInt256();
-                state.amountCalculated = state.amountCalculated.sub(step.amountOut.toInt256());
+                state.amountSpecifiedRemaining -= int256(step.amountIn + step.feeAmount);
+                state.amountCalculated = state.amountCalculated - int256(step.amountOut);
             } else {
-                state.amountSpecifiedRemaining += step.amountOut.toInt256();
-                state.amountCalculated = state.amountCalculated.add((step.amountIn + step.feeAmount).toInt256());
+                state.amountSpecifiedRemaining += int256(step.amountOut);
+                state.amountCalculated = state.amountCalculated + int256(step.amountIn + step.feeAmount);
             }
 
             // if the protocol fee is on, calculate how much is owed, decrement feeAmount, and increment protocolFee
@@ -683,7 +682,7 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
 
             // update global fee tracker
             if (state.liquidity > 0)
-                state.feeGrowthGlobalX128 += FullMath.mulDiv(step.feeAmount, FixedPoint128.Q128, state.liquidity);
+                state.feeGrowthGlobalX128 += MulDivLib.mulDiv(step.feeAmount, FixedPoint128.Q128, state.liquidity);
 
             // shift tick if we reached the next price
             if (state.sqrtPriceX96 == step.sqrtPriceNextX96) {
@@ -770,13 +769,13 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
 
             uint256 balance0Before = balance0();
             IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
-            require(balance0Before.add(uint256(amount0)) <= balance0(), 'IIA');
+            require(balance0Before + uint256(amount0) <= balance0(), 'IIA');
         } else {
             if (amount0 < 0) TransferHelper.safeTransfer(token0, recipient, uint256(-amount0));
 
             uint256 balance1Before = balance1();
             IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
-            require(balance1Before.add(uint256(amount1)) <= balance1(), 'IIA');
+            require(balance1Before + uint256(amount1) <= balance1(), 'IIA');
         }
 
         emit Swap(msg.sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);
@@ -793,8 +792,8 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
         uint128 _liquidity = liquidity;
         require(_liquidity > 0, 'L');
 
-        uint256 fee0 = FullMath.mulDivRoundingUp(amount0, fee, 1e6);
-        uint256 fee1 = FullMath.mulDivRoundingUp(amount1, fee, 1e6);
+        uint256 fee0 = MulDivLib.mulDivRoundingUp(amount0, fee, 1e6);
+        uint256 fee1 = MulDivLib.mulDivRoundingUp(amount1, fee, 1e6);
         uint256 balance0Before = balance0();
         uint256 balance1Before = balance1();
 
@@ -806,8 +805,8 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
         uint256 balance0After = balance0();
         uint256 balance1After = balance1();
 
-        require(balance0Before.add(fee0) <= balance0After, 'F0');
-        require(balance1Before.add(fee1) <= balance1After, 'F1');
+        require(balance0Before + fee0 <= balance0After, 'F0');
+        require(balance1Before + fee1 <= balance1After, 'F1');
 
         // sub is safe because we know balanceAfter is gt balanceBefore by at least fee
         uint256 paid0 = balance0After - balance0Before;
@@ -817,13 +816,13 @@ contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {
             uint8 feeProtocol0 = slot0.feeProtocol % 16;
             uint256 fees0 = feeProtocol0 == 0 ? 0 : paid0 / feeProtocol0;
             if (uint128(fees0) > 0) protocolFees.token0 += uint128(fees0);
-            feeGrowthGlobal0X128 += FullMath.mulDiv(paid0 - fees0, FixedPoint128.Q128, _liquidity);
+            feeGrowthGlobal0X128 += MulDivLib.mulDiv(paid0 - fees0, FixedPoint128.Q128, _liquidity);
         }
         if (paid1 > 0) {
             uint8 feeProtocol1 = slot0.feeProtocol >> 4;
             uint256 fees1 = feeProtocol1 == 0 ? 0 : paid1 / feeProtocol1;
             if (uint128(fees1) > 0) protocolFees.token1 += uint128(fees1);
-            feeGrowthGlobal1X128 += FullMath.mulDiv(paid1 - fees1, FixedPoint128.Q128, _liquidity);
+            feeGrowthGlobal1X128 += MulDivLib.mulDiv(paid1 - fees1, FixedPoint128.Q128, _liquidity);
         }
 
         emit Flash(msg.sender, recipient, amount0, amount1, paid0, paid1);
