@@ -20,10 +20,10 @@ import './libraries/SwapMath.sol';
 
 import 'src/interfaces/IUniswapV3PoolDeployer.sol';
 import 'src/interfaces/IUniswapV3Factory.sol';
-import 'lib/v3-core/contracts/interfaces/IERC20Minimal.sol';
-import 'lib/v3-core/contracts/interfaces/callback/IUniswapV3MintCallback.sol';
-import 'lib/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol';
-import 'lib/v3-core/contracts/interfaces/callback/IUniswapV3FlashCallback.sol';
+import 'src/interfaces/callback/IUniswapV3SwapCallback.sol';
+import 'src/interfaces/callback/IUniswapV3FlashCallback.sol';
+import 'src/interfaces/callback/IUniswapV3MintCallback.sol';
+
 import 'lib/openzeppelin-contracts/contracts/utils/math/Math.sol';
 
 contract UniswapV3Pool is IUniswapV3Pool, NoDelegateCall {

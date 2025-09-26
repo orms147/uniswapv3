@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import 'lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import 'src/interfaces/IUniswapV3Pool.sol';
 
 /// @title Creates and initializes V3 Pools
 /// @notice Provides a method for creating and initializing a pool, if necessary, for bundling with other methods that

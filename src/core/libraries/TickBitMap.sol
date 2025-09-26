@@ -36,17 +36,25 @@ library TickBitmap {
             uint256 masked = self[wordPos] & mask;
 
             initialized = masked != 0;
-            next = initialized
-                ? (compressed - int24(uint24(bitPos) - BitMathSft.mostSignificantBit(masked))) * tickSpacing
-                : (compressed - int24(uint24(bitPos))) * tickSpacing;
+            if (initialized) {
+                uint8 msb = BitMathSft.mostSignificantBit(masked);
+                require(bitPos >= msb, "TickBitmap: bitPos underflow");
+                next = (compressed - int24(uint24(bitPos - msb))) * tickSpacing;
+            } else {
+                next = (compressed - int24(uint24(bitPos))) * tickSpacing;
+            }
         } else {
             (int16 wordPos, uint8 bitPos) = position(compressed + 1);
             uint256 mask = ~((uint256(1) << bitPos) - 1);
             uint256 masked = self[wordPos] & mask;
             initialized = masked != 0;
-            next = initialized
-                ? (compressed + 1 + int24(uint24(BitMathSft.leastSignificantBit(masked) - bitPos))) * tickSpacing
-                : (compressed + 1 + int24(uint24(type(uint8).max) - uint24(bitPos))) * tickSpacing;
+            if (initialized) {
+                uint8 lsb = BitMathSft.leastSignificantBit(masked);
+                require(lsb >= bitPos, "TickBitmap: lsb underflow");
+                next = (compressed + 1 + int24(uint24(lsb - bitPos))) * tickSpacing;
+            } else {
+                next = (compressed + 1 + int24(uint24(type(uint8).max) - uint24(bitPos))) * tickSpacing;
+            }
         }
     }
 }

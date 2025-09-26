@@ -11,7 +11,7 @@ library SqrtPriceMath {
         uint160 sqrtPX96,
         uint128 liquidity,
         uint256 amount,
-        bool add
+        bool add    //true: add liquidity, false: remove liquidity
     ) internal pure returns (uint160) {
         if (amount == 0) return sqrtPX96;
         uint256 numerator1 = uint256(liquidity) << FixedPoint96.RESOLUTION;
@@ -24,7 +24,7 @@ library SqrtPriceMath {
                     return uint160(MulDivLib.mulDivRoundingUp(numerator1, sqrtPX96, denominator));
                 }
             }
-            return uint160((numerator1 + amount - 1) / ((numerator1 / sqrtPX96) + amount));
+            return uint160(MulDivLib.mulDivRoundingUp(numerator1, sqrtPX96, numerator1 + amount));
         } else {
             uint256 product = amount * sqrtPX96;
             require(product / amount == sqrtPX96 && numerator1 > product);
@@ -57,7 +57,7 @@ library SqrtPriceMath {
         uint160 sqrtPX96,
         uint128 liquidity,
         uint256 amountIn,
-        bool zeroForOne
+        bool zeroForOne //true: swap 0->1, false: swap 1->0
     ) internal pure returns (uint160 sqrtQX96) {
         require(sqrtPX96 > 0);
         require(liquidity > 0);
@@ -70,7 +70,7 @@ library SqrtPriceMath {
         uint160 sqrtPX96,
         uint128 liquidity,
         uint256 amountOut,
-        bool zeroForOne
+        bool zeroForOne //true: swap 0->1, false: swap 1->0
     ) internal pure returns (uint160 sqrtQX96) {
         require(sqrtPX96 > 0);
         require(liquidity > 0);

@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "@uniswap/v3-core": "github:Uniswap/v3-core"
+    "dotenv": "^17.2.2",
+    "ethers": "^6.15.0"
   }
 }

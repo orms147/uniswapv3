@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import 'lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import 'lib/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol';
 import 'lib/openzeppelin-contracts/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 

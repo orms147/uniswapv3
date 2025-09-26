@@ -2,11 +2,18 @@
 pragma solidity ^0.8.0;
 
 import 'src/core/libraries/TickMath.sol';
-import 'lib/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
+import 'src/core/libraries/SqrtPriceMath.sol';
+import 'src/core/libraries/TransferHelper.sol';
+import 'src/interfaces/IUniswapV3Pool.sol';
 
 import '../interfaces/ISwapRouter.sol';
 import '../interfaces/IPeripheryImmutableState.sol';
 import '../interfaces/IPeripheryPayments.sol';
+
+interface IWETH9 is IERC20Minimal {
+    function deposit() external payable;
+    function withdraw(uint256) external;
+}
 
 /// @title Uniswap V3 Swap Router
 /// @notice Router for stateless execution of swaps against Uniswap V3
@@ -52,8 +59,24 @@ contract SwapRouter is ISwapRouter, IPeripheryImmutableState, IPeripheryPayments
         override
         returns (uint256 amountOut)
     {
-        // Implementation placeholder - would need full implementation
-        revert("Not implemented yet");
+        require(block.timestamp <= params.deadline, 'Transaction too old');
+        
+        IUniswapV3Pool pool = getPool(params.tokenIn, params.tokenOut, params.fee);
+        
+        bool zeroForOne = params.tokenIn < params.tokenOut;
+        
+        (int256 amount0, int256 amount1) = pool.swap(
+            params.recipient,
+            zeroForOne,
+            int256(params.amountIn),
+            params.sqrtPriceLimitX96 == 0
+                ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+                : params.sqrtPriceLimitX96,
+            abi.encode(params.tokenIn, params.tokenOut, params.fee)
+        );
+        
+        amountOut = uint256(-(zeroForOne ? amount1 : amount0));
+        require(amountOut >= params.amountOutMinimum, 'Insufficient output amount');
     }
 
     /// @inheritdoc ISwapRouter
@@ -74,8 +97,24 @@ contract SwapRouter is ISwapRouter, IPeripheryImmutableState, IPeripheryPayments
         override
         returns (uint256 amountIn)
     {
-        // Implementation placeholder - would need full implementation
-        revert("Not implemented yet");
+        require(block.timestamp <= params.deadline, 'Transaction too old');
+        
+        IUniswapV3Pool pool = getPool(params.tokenIn, params.tokenOut, params.fee);
+        
+        bool zeroForOne = params.tokenIn < params.tokenOut;
+        
+        (int256 amount0, int256 amount1) = pool.swap(
+            params.recipient,
+            zeroForOne,
+            -int256(params.amountOut),
+            params.sqrtPriceLimitX96 == 0
+                ? (zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1)
+                : params.sqrtPriceLimitX96,
+            abi.encode(params.tokenIn, params.tokenOut, params.fee)
+        );
+        
+        amountIn = uint256(zeroForOne ? amount0 : amount1);
+        require(amountIn <= params.amountInMaximum, 'Excessive input amount');
     }
 
     /// @inheritdoc ISwapRouter
@@ -91,14 +130,19 @@ contract SwapRouter is ISwapRouter, IPeripheryImmutableState, IPeripheryPayments
 
     /// @inheritdoc IPeripheryPayments
     function unwrapWETH9(uint256 amountMinimum, address recipient) external payable override {
-        // Implementation placeholder
-        revert("Not implemented yet");
+        uint256 balanceWETH9 = IERC20Minimal(WETH9).balanceOf(address(this));
+        require(balanceWETH9 >= amountMinimum, 'Insufficient WETH9');
+        
+        if (balanceWETH9 > 0) {
+            // Unwrap WETH9 to ETH
+            IWETH9(WETH9).withdraw(balanceWETH9);
+            TransferHelper.safeTransferETH(recipient, balanceWETH9);
+        }
     }
 
     /// @inheritdoc IPeripheryPayments
     function refundETH() external payable override {
-        // Implementation placeholder
-        revert("Not implemented yet");
+        if (address(this).balance > 0) TransferHelper.safeTransferETH(msg.sender, address(this).balance);
     }
 
     /// @inheritdoc IPeripheryPayments
@@ -107,7 +151,11 @@ contract SwapRouter is ISwapRouter, IPeripheryImmutableState, IPeripheryPayments
         uint256 amountMinimum,
         address recipient
     ) external payable override {
-        // Implementation placeholder
-        revert("Not implemented yet");
+        uint256 balanceToken = IERC20Minimal(token).balanceOf(address(this));
+        require(balanceToken >= amountMinimum, 'Insufficient token');
+        
+        if (balanceToken > 0) {
+            TransferHelper.safeTransfer(token, recipient, balanceToken);
+        }
     }
 }

@@ -7,17 +7,19 @@ import "./LiquidityMath.sol";
 
 library Position {
     struct Info {
-        uint128 liquidity;
-        uint256 feeGrowthInside0LastX128;
-        uint256 feeGrowthInside1LastX128;
-        uint128 tokensOwed0;
-        uint128 tokensOwed1;
+        uint128 liquidity;    //số lượng liquidity tích lũy
+        uint256 feeGrowthInside0LastX128;    //tổng fee tích lũy token0 
+        uint256 feeGrowthInside1LastX128;    //tổng fee tích lũy token1 
+        uint128 tokensOwed0;    //token0 tích lũy nhưng ch rút
+        uint128 tokensOwed1;    //token1 tích lũy nhưng ch rút
+        //tokensOwed được trả khi LP gọi collect()
     }
 
-    error NoPosition(); // NP
+    error NoPosition(); // No Position
 
-    /// @notice Get storage slot for position (owner + range)
+    /// @notice mapping vị thế về slot trong storage
     function get(
+        //key = keccak256(owner, tickLower, tickUpper)
         mapping(bytes32 => Info) storage self,
         address owner,
         int24 tickLower,
