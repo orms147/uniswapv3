@@ -5,6 +5,7 @@ import "lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import './PeripheryImmutableState.sol';
 import '../../core/libraries/TransferHelper.sol';
+import '../../interfaces/IERC20Minimal.sol';
 
 /// @title PeripheryPayments
 /// @notice Functions to handle token/WETH/ETH payments
@@ -69,7 +70,7 @@ abstract contract PeripheryPayments is PeripheryImmutableState {
     }
 }
 
-interface IWETH9 is IERC20 {
+interface IWETH9 is IERC20Minimal {
     function deposit() external payable;
     function withdraw(uint256) external;
 }

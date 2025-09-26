@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import 'lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol';
+import '../IERC20Minimal.sol';
 
 /// @title Interface for WETH9
-interface IWETH9 is IERC20 {
+interface IWETH9 is IERC20Minimal {
     /// @notice Deposit ether to get wrapped ether
     function deposit() external payable;
 

@@ -5,15 +5,12 @@ import 'src/core/libraries/TickMath.sol';
 import 'src/core/libraries/SqrtPriceMath.sol';
 import 'src/core/libraries/TransferHelper.sol';
 import 'src/interfaces/IUniswapV3Pool.sol';
+import 'src/interfaces/IERC20Minimal.sol';
 
 import '../interfaces/ISwapRouter.sol';
 import '../interfaces/IPeripheryImmutableState.sol';
 import '../interfaces/IPeripheryPayments.sol';
-
-interface IWETH9 is IERC20Minimal {
-    function deposit() external payable;
-    function withdraw(uint256) external;
-}
+import '../interfaces/external/IWETH9.sol';
 
 /// @title Uniswap V3 Swap Router
 /// @notice Router for stateless execution of swaps against Uniswap V3
